@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Functional Calculator</title>
+
+    <style>
+        /* General Setup */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+
+        /* Calculator Container */
+        .calculator {
+            background-color: #3a3a3a;
+            border-radius: 10px;
+            padding: 20px;
+            width: 320px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Screen/Display */
+        .calculator-screen {
+            width: 100%;
+            height: 70px;
+            background-color: #222;
+            color: #fff;
+            text-align: right;
+            font-size: 2.8em;
+            border: none;
+            padding: 10px 15px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+
+        /* Keypad Layout using Grid */
+        .calculator-keys {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+
+        /* Button Styling */
+        .calculator-keys button {
+            height: 60px;
+            border-radius: 5px;
+            border: none;
+            font-size: 1.5em;
+            cursor: pointer;
+            background-color: #e6e6e6;
+            color: #333;
+            transition: background-color 0.1s;
+        }
+
+        .calculator-keys button:active {
+            filter: brightness(0.9);
+        }
+
+        /* Operator Buttons (Orange) */
+        .operator {
+            background-color: #ff9d00;
+            color: #fff;
+        }
+
+        /* Clear Button (Red) */
+        .all-clear {
+            background-color: #c0392b;
+            color: #fff;
+            font-size: 1.4em;
+        }
+
+        /* Equal Sign Button (Green) - Spans two columns on the bottom row */
+        .equal-sign {
+            grid-column: 4 / 5;
+            grid-row: 5 / 6;
+            background-color: #2ecc71;
+        }
+
+        /* Zero button - Spans two columns for classic layout */
+        .calculator-keys button[value="0"] {
+            grid-column: span 2;
+            text-align: left;
+            padding-left: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="calculator">
+        <input type="text" class="calculator-screen" value="0" disabled />
+        
+        <div class="calculator-keys">
+            <button type="button" class="operator" value="+">+</button>
+            <button type="button" class="operator" value="-">-</button>
+            <button type="button" class="operator" value="*">&times;</button>
+            <button type="button" class="operator" value="/">/</button>
+            
+            <button type="button" value="7">7</button>
+            <button type="button" value="8">8</button>
+            <button type="button" value="9">9</button>
+            
+            <button type="button" value="4">4</button>
+            <button type="button" value="5">5</button>
+            <button type="button" value="6">6</button>
+            
+            <button type="button" value="1">1</button>
+            <button type="button" value="2">2</button>
+            <button type="button" value="3">3</button>
+            
+            <button type="button" value="0">0</button>
+            <button type="button" class="decimal" value=".">.</button>
+            <button type="button" class="all-clear" value="all-clear">AC</button>
+            
+            <button type="button" class="equal-sign operator" value="=">=</button>
+        </div>
+    </div>
+
+    <script>
+        const calculator = document.querySelector('.calculator');
+        const keys = calculator.querySelector('.calculator-keys');
+        const display = document.querySelector('.calculator-screen');
+
+        let firstValue = null; 
+        let operator = null;    
+        let waitingForSecondValue = false;
+
+        keys.addEventListener('click', (event) => {
+            const { target } = event;
+            const { value } = target;
+
+            if (!target.matches('button')) {
+                return;
+            }
+
+            if (!isNaN(parseFloat(value))) {
+                inputDigit(value);
+            } else {
+                switch (value) {
+                    case '+':
+                    case '-':
+                    case '*':
+                    case '/':
+                    case '=':
+                        handleOperator(value);
+                        break;
+                    case '.':
+                        inputDecimal(value);
+                        break;
+                    case 'all-clear':
+                        resetCalculator();
+                        break;
+                }
+            }
+
+            // Update display logic is embedded within the functions,
+            // but we can call it here for consistency if needed.
+        });
+
+        function inputDigit(digit) {
+            const currentValue = display.value;
+            
+            if (waitingForSecondValue) {
+                display.value = digit;
+                waitingForSecondValue = false;
+            } else if (currentValue === '0') {
+                display.value = digit;
+            } else {
+                display.value = currentValue + digit;
+            }
+        }
+
+        function inputDecimal(dot) {
+            if (waitingForSecondValue) {
+                display.value = '0.';
+                waitingForSecondValue = false;
+                return;
+            }
+
+            if (!display.value.includes(dot)) {
+                display.value += dot;
+            }
+        }
+
+        function handleOperator(nextOperator) {
+            const inputValue = parseFloat(display.value);
+
+            if (firstValue === null) {
+                firstValue = inputValue;
+                operator = nextOperator;
+            } else if (operator && nextOperator === '=') {
+                const result = calculate(firstValue, inputValue, operator);
+                display.value = String(result);
+                firstValue = null;
+                operator = null;
+            } else if (operator && nextOperator !== '=') {
+                // Chaining calculations
+                const result = calculate(firstValue, inputValue, operator);
+                display.value = String(result);
+                firstValue = result;
+                operator = nextOperator;
+            } else {
+                operator = nextOperator;
+            }
+
+            waitingForSecondValue = true;
+        }
+
+        function calculate(n1, n2, op) {
+            if (op === '+') return n1 + n2;
+            if (op === '-') return n1 - n2;
+            if (op === '*') return n1 * n2;
+            if (op === '/') {
+                if (n2 === 0) return 'Error';
+                return n1 / n2;
+            }
+            return n2;
+        }
+
+        function resetCalculator() {
+            display.value = '0';
+            firstValue = null;
+            operator = null;
+            waitingForSecondValue = false;
+        }
+    </script>
+</body>
+</html>
